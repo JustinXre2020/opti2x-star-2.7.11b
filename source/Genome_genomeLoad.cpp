@@ -5,6 +5,7 @@
 #include "streamFuns.h"
 #include "SharedMemory.h"
 #include "genomeScanFastaFiles.h"
+#include "fileMapping.h"
 
 //addresses with respect to shmStart of several genome values
 #define SHM_sizeG 0
@@ -141,6 +142,7 @@ void Genome::genomeLoad(){//allocate and load Genome
     OpenStream("SAindex",SAiIn,1); //we do not need SAiIn siz, using a dummy value here to prevent from reading its size from the disk
 
     uint SAiInBytes=0;
+    bool saMapped=false;//SA and SAi point into read-only mappings of the genome files
     SAiInBytes += fstreamReadBig(SAiIn,(char*) &pGe.gSAindexNbases, sizeof(pGe.gSAindexNbases));
     genomeSAindexStart = new uint[pGe.gSAindexNbases+1];
     SAiInBytes += fstreamReadBig(SAiIn,(char*) genomeSAindexStart, sizeof(genomeSAindexStart[0])*(pGe.gSAindexNbases+1));
@@ -284,7 +286,17 @@ void Genome::genomeLoad(){//allocate and load Genome
             } else {//no sjdb insertions
                 if (genomeInsertL==0) {// no sequence insertion, simple allocation
                     G1=new char[nGenome+L+L];
-                    SA.allocateArray();
+                    if (pGe.gMmap=="Yes") {//SA and SAi are used as stored, map them instead of copying
+                        char* sa1=mapFileReadOnly(pGe.gDir+"/SA", 0, SA.lengthByte);
+                        char* sai1= sa1==NULL ? NULL : mapFileReadOnly(pGe.gDir+"/SAindex", SAiInBytes, SAi.lengthByte);
+                        if (sai1!=NULL) {
+                            SA.pointArray(sa1);
+                            SAi.pointArray(sai1);
+                            saMapped=true;
+                        };
+                    };
+                    if (!saMapped)
+                        SA.allocateArray();
                 } else {
                     G1=new char[nGenome+L+L+genomeInsertL];
                     SAinsert.defineBits(GstrandBit+1,nSA+2*genomeInsertL);//TODO: re-define GstrandBit if necessary
@@ -292,7 +304,8 @@ void Genome::genomeLoad(){//allocate and load Genome
                     SA.pointArray(SAinsert.charArray+SAinsert.lengthByte-SA.lengthByte);
                 };
             };
-            SAi.allocateArray();
+            if (!saMapped)
+                SAi.allocateArray();
             P.inOut->logMain <<"Shared memory is not used for genomes. Allocated a private copy of the genome.\n"<<flush;
         } catch (exception & exc) {
             ostringstream errOut;
@@ -304,6 +317,13 @@ void Genome::genomeLoad(){//allocate and load Genome
     };
 
     G=G1+L;
+
+    if (saMapped) {
+        P.inOut->logMain <<"SA and SAindex are mapped read-only from the genome directory (--genomeMmap Yes)\n"<<flush;
+    } else if (pGe.gMmap=="Yes") {
+        P.inOut->logMain <<"--genomeMmap Yes is ignored, SA and SAindex are loaded into memory: they are mapped only with --genomeLoad NoSharedMemory"
+                         <<" when no sequences or junctions are inserted on the fly, and when the files can be mapped\n"<<flush;
+    };
 
     bool isAllocatorProcess = sharedMemory != NULL && sharedMemory->IsAllocator();
 
@@ -326,13 +346,13 @@ void Genome::genomeLoad(){//allocate and load Genome
         P.inOut->logMain <<"SA file size: "<<SA.lengthByte <<" bytes; state: good=" <<SAin.good()\
                 <<" eof="<<SAin.eof()<<" fail="<<SAin.fail()<<" bad="<<SAin.bad()<<"\n"<<flush;
         P.inOut->logMain <<"Loading SA ... " << flush;
-        genomeReadBytesN=fstreamReadBig(SAin,SA.charArray, SA.lengthByte);
+        genomeReadBytesN= saMapped ? 0 : fstreamReadBig(SAin,SA.charArray, SA.lengthByte);
         P.inOut->logMain <<"done! state: good=" <<SAin.good()\
                 <<" eof="<<SAin.eof()<<" fail="<<SAin.fail()<<" bad="<<SAin.bad()<<"; loaded "<<genomeReadBytesN<<" bytes\n" << flush;
         SAin.close();
 
         P.inOut->logMain <<"Loading SAindex ... " << flush;
-        SAiInBytes +=fstreamReadBig(SAiIn,SAi.charArray, SAi.lengthByte);
+        SAiInBytes += saMapped ? 0 : fstreamReadBig(SAiIn,SAi.charArray, SAi.lengthByte);
         P.inOut->logMain <<"done: "<<SAiInBytes<<" bytes\n" << flush;
     };
 

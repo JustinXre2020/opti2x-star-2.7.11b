@@ -10,6 +10,7 @@ class ParametersGenome {//"constant" genome parameters - user input
 public:
     string gDir;
     string gLoad;
+    string gMmap;
     
     uint32 gType;//type code
     string gTypeString;

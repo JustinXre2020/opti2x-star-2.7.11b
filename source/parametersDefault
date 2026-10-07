@@ -44,6 +44,11 @@ genomeLoad                NoSharedMemory
                           Remove          ... do not map anything, just remove loaded genome from memory
                           NoSharedMemory  ... do not use shared memory, each job will have its own private copy of the genome
 
+genomeMmap                No
+    string: map the suffix array and its index read-only from the genome directory instead of loading a private copy. Only used with --genomeLoad NoSharedMemory when no sequences or junctions are inserted on the fly, ignored otherwise.
+                          No  ... load a private copy
+                          Yes ... map the files: jobs on one machine share the pages through the file cache and the job's own memory footprint shrinks by the size of the suffix array, but alignment is slower while the pages are first read from disk
+
 genomeFastaFiles            -
     string(s): path(s) to the fasta files with the genome sequences, separated by spaces. These files should be plain text FASTA files, they *cannot* be zipped.
                             Required for the genome generation (--runMode genomeGenerate). Can also be used in the mapping (--runMode alignReads) to add extra (new) sequences to the genome (e.g. spike-ins).

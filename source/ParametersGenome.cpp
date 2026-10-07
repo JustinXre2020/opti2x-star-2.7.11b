@@ -24,7 +24,7 @@ void ParametersGenome::initialize(Parameters *pPin)
         exitWithError(errOut.str(), std::cerr, pP->inOut->logMain, EXIT_CODE_PARAMETER, *pP);
     };
     
-    transform.outYes = transform.outSAM = transform.outSJ = false;
+    transform.outYes = transform.outSAM = transform.outSJ = transform.outQuant = false;
     if (transform.output.at(0) == "None") {
         //nothing to do
     } else {
@@ -54,6 +54,13 @@ void ParametersGenome::initialize(Parameters *pPin)
         ostringstream errOut;
         errOut << "EXITING because of FATAL INPUT ERROR: --genomeLoad=" << gLoad << "\n" <<flush;
         errOut << "SOLUTION: use one of the allowed values for --genomeLoad : NoSharedMemory,LoadAndKeep,LoadAndRemove,LoadAndExit,Remove.\n" <<flush;
+        exitWithError(errOut.str(),std::cerr, pP->inOut->logMain, EXIT_CODE_PARAMETER, *pP);
+    };
+
+    if (gMmap!="Yes" && gMmap!="No") {
+        ostringstream errOut;
+        errOut << "EXITING because of FATAL INPUT ERROR: --genomeMmap=" << gMmap << "\n" <<flush;
+        errOut << "SOLUTION: use one of the allowed values for --genomeMmap : No,Yes.\n" <<flush;
         exitWithError(errOut.str(),std::cerr, pP->inOut->logMain, EXIT_CODE_PARAMETER, *pP);
     };    
 };

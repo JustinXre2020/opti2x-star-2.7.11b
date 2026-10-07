@@ -1,98 +1,50 @@
 #include "SequenceFuns.h"
 #include <assert.h>  
 
+namespace {
+struct NuclTables {//byte-indexed tables replacing the per-base switches, which mispredict on every base of a read
+    char toNum[256], revCompl[256];
+    NuclTables() {
+        for (int b=0; b<256; b++) {
+            toNum[b]=4; //anything else is converted to N
+            revCompl[b]=(char)b; //anything else is copied
+        };
+        const char *acgt="ACGTacgt";
+        for (int i=0; i<8; i++)
+            toNum[(uint8)acgt[i]]=char(i%4);
+        const char *from="ACGTNRYKMSWBDVHacgtnrykmswbdvh", *to="TGCANYRMKSWVHBDtgcanyrmkswvhbd";
+        for (int i=0; from[i]!=0; i++)
+            revCompl[(uint8)from[i]]=to[i];
+    };
+};
+const NuclTables& nuclTables() {//function-local static: initialized on first use, whatever the static init order
+    static const NuclTables t;
+    return t;
+};
+};
+
 void complementSeqNumbers(char* ReadsIn, char* ReadsOut, uint Lread) {//complement the numeric sequences
     for (uint jj=0;jj<Lread;jj++) {
-        switch (int(ReadsIn[jj])){
-            case (3): ReadsOut[jj]=char(0);break;
-            case (2): ReadsOut[jj]=char(1);break;
-            case (1): ReadsOut[jj]=char(2);break;
-            case (0): ReadsOut[jj]=char(3);break;
-            default:  ReadsOut[jj]=ReadsIn[jj];
-        };
+        uint8 b=ReadsIn[jj];
+        ReadsOut[jj] = b<4 ? char(3-b) : ReadsIn[jj]; //ACGT=0123 are complemented, other codes copied
     };
 };
 
 void revComplementNucleotides(char* ReadsIn, char* ReadsOut, uint Lread) {//complement the numeric sequences
+    const char *revCompl=nuclTables().revCompl;
     for (uint jj=0;jj<Lread;jj++) {
-        switch (ReadsIn[Lread-1-jj]){
-            case ('A'): ReadsOut[jj]='T';break;
-            case ('C'): ReadsOut[jj]='G';break;
-            case ('G'): ReadsOut[jj]='C';break;
-            case ('T'): ReadsOut[jj]='A';break;
-            case ('N'): ReadsOut[jj]='N';break;
-            case ('R'): ReadsOut[jj]='Y';break;
-            case ('Y'): ReadsOut[jj]='R';break;
-            case ('K'): ReadsOut[jj]='M';break;
-            case ('M'): ReadsOut[jj]='K';break;
-            case ('S'): ReadsOut[jj]='S';break;
-            case ('W'): ReadsOut[jj]='W';break;
-            case ('B'): ReadsOut[jj]='V';break;
-            case ('D'): ReadsOut[jj]='H';break;
-            case ('V'): ReadsOut[jj]='B';break;
-            case ('H'): ReadsOut[jj]='D';break;
-
-            case ('a'): ReadsOut[jj]='t';break;
-            case ('c'): ReadsOut[jj]='g';break;
-            case ('g'): ReadsOut[jj]='c';break;
-            case ('t'): ReadsOut[jj]='a';break;
-            case ('n'): ReadsOut[jj]='n';break;
-            case ('r'): ReadsOut[jj]='y';break;
-            case ('y'): ReadsOut[jj]='r';break;
-            case ('k'): ReadsOut[jj]='m';break;
-            case ('m'): ReadsOut[jj]='k';break;
-            case ('s'): ReadsOut[jj]='s';break;
-            case ('w'): ReadsOut[jj]='w';break;
-            case ('b'): ReadsOut[jj]='v';break;
-            case ('d'): ReadsOut[jj]='h';break;
-            case ('v'): ReadsOut[jj]='b';break;
-            case ('h'): ReadsOut[jj]='d';break;
-
-            default:   ReadsOut[jj]=ReadsIn[Lread-1-jj];
-        };
+        ReadsOut[jj]=revCompl[(uint8)ReadsIn[Lread-1-jj]];
     };
 };
 
 void revComplementNucleotides(string &seq) {//complement the numeric sequences
+    const char *revCompl=nuclTables().revCompl;
     string seq1(seq);
     for (uint jj=0;jj<seq.size();jj++) {
-        switch (seq1[seq.size()-1-jj]){
-            case ('A'): seq[jj]='T';break;
-            case ('C'): seq[jj]='G';break;
-            case ('G'): seq[jj]='C';break;
-            case ('T'): seq[jj]='A';break;
-            case ('N'): seq[jj]='N';break;
-            case ('R'): seq[jj]='Y';break;
-            case ('Y'): seq[jj]='R';break;
-            case ('K'): seq[jj]='M';break;
-            case ('M'): seq[jj]='K';break;
-            case ('S'): seq[jj]='S';break;
-            case ('W'): seq[jj]='W';break;
-            case ('B'): seq[jj]='V';break;
-            case ('D'): seq[jj]='H';break;
-            case ('V'): seq[jj]='B';break;
-            case ('H'): seq[jj]='D';break;
-
-            case ('a'): seq[jj]='t';break;
-            case ('c'): seq[jj]='g';break;
-            case ('g'): seq[jj]='c';break;
-            case ('t'): seq[jj]='a';break;
-            case ('n'): seq[jj]='n';break;
-            case ('r'): seq[jj]='y';break;
-            case ('y'): seq[jj]='r';break;
-            case ('k'): seq[jj]='m';break;
-            case ('m'): seq[jj]='k';break;
-            case ('s'): seq[jj]='s';break;
-            case ('w'): seq[jj]='w';break;
-            case ('b'): seq[jj]='v';break;
-            case ('d'): seq[jj]='h';break;
-            case ('v'): seq[jj]='b';break;
-            case ('h'): seq[jj]='d';break;
-
-            default:   seq[jj]=seq1[seq.size()-1-jj];
-        };
+        seq[jj]=revCompl[(uint8)seq1[seq.size()-1-jj]];
     };
 };
+
 
 
 
@@ -129,20 +81,10 @@ void nuclPackBAM(char* ReadsIn, char* ReadsOut, uint Lread) {//pack nucleotides 
 };
 
 void convertNucleotidesToNumbers(const char* R0, char* R1, const uint Lread) {//transform sequence  from ACGT into 0-1-2-3 code
+    const char *toNum=nuclTables().toNum;
     for (uint jj=0;jj<Lread;jj++) {
-                    switch (int(R0[jj])){
-                        case (65): case(97):
-                            R1[jj]=char(0);break;//A
-                        case (67): case(99):
-                            R1[jj]=char(1);break;//C
-                        case (71): case(103):
-                            R1[jj]=char(2);break;//G
-                        case (84): case(116):
-                            R1[jj]=char(3);break;//T
-                        default:
-                            R1[jj]=char(4);//anything else is converted to N
-                    };
-                };
+        R1[jj]=toNum[(uint8)R0[jj]]; //acgt as ACGT, anything else is converted to N
+    };
 };
 
 void convertCapitalBasesToNum(uint8_t *rS, uint64_t N)

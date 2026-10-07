@@ -1,4 +1,5 @@
 #include "sjdbBuildIndex.h"
+#include "sjdbInsertSA.h"
 // #include "sjdbLoadFromStream.h"
 // #include "sjdbPrepare.h"
 #include "ErrorWarning.h"
@@ -124,87 +125,13 @@ void sjdbBuildIndex (Parameters &P, char *Gsj, char *G, PackedArray &SA, PackedA
     };
 
     SA2.defineBits(mapGen.GstrandBit+1,mapGen.nSA);
-    uint nGsjNew=sjNew*mapGen.sjdbLength; //this is the actual number of bytes added to the genome, while nGsj is the total size of all junctions
-
-    uint N2bit= 1LLU << mapGen.GstrandBit;
-    uint strandMask=~N2bit;
-
-    /*testing
-    PackedArray SAo;
-    SAo.defineBits(mapGen.GstrandBit+1,mapGen.nSA);
-    SAo.allocateArray();
-    ifstream oldSAin("./DirTrue/SA");
-    oldSAin.read(SAo.charArray,SAo.lengthByte);
-    oldSAin.close();
-    */
-
-    uint isj=0, isa2=0;
-    for (uint isa=0;isa<mapGen1.nSA;isa++) {
-        while (isa==indArray[isj*2]) {//insert sj index before the existing index
-            uint ind1=indArray[isj*2+1];
-            if (ind1<nGsj) {
-                ind1+=mapGen.chrStart[mapGen.nChrReal];
-            } else {//reverse strand
-                ind1=(ind1-nGsj) | N2bit;
-            };
-            SA2.writePacked(isa2,ind1);
-            /*testing
-            if (SA2[isa2]!=SAo[isa2]) {
-               cout <<isa2 <<" "<< SA2[isa2]<<" "<<SAo[isa2]<<endl;
-               //sleep(100);
-            };
-            */
-            ++isa2; ++isj;
-        };
-
-        uint ind1=SA[isa];
-        if ( (ind1 & N2bit)>0 )
-        {//- strand
-            uint ind1s = mapGen1.nGenome - (ind1 & strandMask);
-            if (ind1s>=mapGen.chrStart[mapGen.nChrReal])
-            {//this index was an old sj, may need to shift it
-                uint sj1 = (ind1s-mapGen.chrStart[mapGen.nChrReal])/mapGen.sjdbLength;//old junction index
-                ind1s += (oldSJind[sj1]-sj1)*mapGen.sjdbLength;
-                ind1 = (mapGen.nGenome - ind1s) | N2bit;
-            } else
-            {
-                ind1+=nGsjNew; //reverse complementary indices are all shifted by the length of junctions
-            };
-        } else
-        {//+ strand
-            if (ind1>=mapGen.chrStart[mapGen.nChrReal])
-            {//this index was an old sj, may need to shift it
-                uint sj1 = (ind1-mapGen.chrStart[mapGen.nChrReal])/mapGen.sjdbLength;//old junction index
-                ind1 += (oldSJind[sj1]-sj1)*mapGen.sjdbLength;
-            };
-        };
-
-        SA2.writePacked(isa2,ind1);
-            /*testing
-            if (SA2[isa2]!=SAo[isa2]) {
-               cout <<isa2 <<" "<< SA2[isa2]<<" "<<SAo[isa2]<<endl;
-               //sleep(100);
-            };
-            */
-        ++isa2;
-    };
-
-    for (;isj<nInd;isj++) {//insert last new indices after the last old index
-        uint ind1=indArray[isj*2+1];
-        if (ind1<nGsj) {
-            ind1+=mapGen.chrStart[mapGen.nChrReal];
-        } else {//reverse strand
-            ind1=(ind1-nGsj) | N2bit;
-        };
-        SA2.writePacked(isa2,ind1);
-            /*testing
-            if (SA2[isa2]!=SAo[isa2]) {
-               cout <<isa2 <<" "<< SA2[isa2]<<" "<<SAo[isa2]<<endl;
-               //sleep(100);
-            };
-            */
-        ++isa2;
-    };
+    SAinsertReport saRep=sjdbInsertSAindices(SA, SA2, mapGen1.nSA, mapGen1.nGenome, mapGen.nGenome, mapGen.chrStart[mapGen.nChrReal],
+                                             mapGen.sjdbLength, mapGen1.sjdbN, oldSJind, sjNew, nGsj, indArray, nInd, mapGen.GstrandBit,
+                                             P.runThreadN);
+    if (saRep.block)
+        P.inOut->logMain << "   SA entries unchanged by the insertion, moved as a block" <<endl;
+    if (saRep.nRounds>0)
+        P.inOut->logMain << "   SA entries shared among " << P.runThreadN << " threads in " << saRep.nRounds << " rounds" <<endl;
 
     time ( &rawtime );
     P.inOut->logMain  << timeMonthDayTime(rawtime) << "   Finished inserting junction indices" <<endl;

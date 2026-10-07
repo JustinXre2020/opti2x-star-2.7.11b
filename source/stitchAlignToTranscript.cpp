@@ -3,6 +3,7 @@
 #include "Transcript.h"
 #include "extendAlign.h"
 #include "binarySearch2.h"
+#include "sjMotif.h"
 // #include "stitchGapIndel.cpp"
 
 
@@ -111,6 +112,7 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
                 int maxScore2=-999999;
                 Score1=0;
                 int jPen=0;
+                const int jPenMotif[7]={P.scoreGapNoncan, 0, 0, P.scoreGapGCAG, P.scoreGapGCAG, P.scoreGapATAC, P.scoreGapATAC}; //by motif code
                 do { // 2. scan to the right to find the best junction locus
                     // ?TODO? if genome base is N, how to score?
                     if  ( R[rAend+jR1]==G[gAend+jR1] && R[rAend+jR1]!=G[gBstart1+jR1] )  Score1+=scoreMatch;
@@ -122,26 +124,9 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
 
                     if (Del>=P.alignIntronMin) {//only check intron motif for large gaps= non-Dels
                         //check if the intron is canonical, or semi-canonical
-                        if ( G[gAend+jR1+1]==2 && G[gAend+jR1+2]==3 && G[gBstart1+jR1-1]==0 && G[gBstart1+jR1]==2 ) {//GTAG
-                            jCan1=1;
-                        } else if ( G[gAend+jR1+1]==1 && G[gAend+jR1+2]==3 && G[gBstart1+jR1-1]==0 && G[gBstart1+jR1]==1 ) {//CTAC
-                            jCan1=2;
-                        } else if ( G[gAend+jR1+1]==2 && G[gAend+jR1+2]==1 && G[gBstart1+jR1-1]==0 && G[gBstart1+jR1]==2 ) {//GCAG
-                            jCan1=3;
-                            jPen1=P.scoreGapGCAG;
-                        } else if ( G[gAend+jR1+1]==1 && G[gAend+jR1+2]==3 && G[gBstart1+jR1-1]==2 && G[gBstart1+jR1]==1 ) {//CTGC
-                            jCan1=4;
-                            jPen1=P.scoreGapGCAG;
-                        } else if ( G[gAend+jR1+1]==0 && G[gAend+jR1+2]==3 && G[gBstart1+jR1-1]==0 && G[gBstart1+jR1]==1 ) {//ATAC
-                            jCan1=5;
-                            jPen1=P.scoreGapATAC;
-                        } else if ( G[gAend+jR1+1]==2 && G[gAend+jR1+2]==3 && G[gBstart1+jR1-1]==0 && G[gBstart1+jR1]==3 ) {//GTAT
-                            jCan1=6;
-                            jPen1=P.scoreGapATAC;
-                        } else {
-                            jCan1=0;
-                            jPen1=P.scoreGapNoncan;
-                        };
+                        jCan1=sjMotifTable(SjMotifTable::base(G[gAend+jR1+1]), SjMotifTable::base(G[gAend+jR1+2]),
+                                           SjMotifTable::base(G[gBstart1+jR1-1]), SjMotifTable::base(G[gBstart1+jR1]));
+                        jPen1=jPenMotif[jCan1];
 
                         Score2 += jPen1;
                     };

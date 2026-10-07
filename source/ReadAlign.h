@@ -11,6 +11,7 @@
 #include "BAMoutput.h"
 #include "Quantifications.h"
 #include "ChimericDetection.h"
+#include "WinBinReset.h"
 #include "SoloRead.h"
 #include "ReadAnnotations.h"
 #include "SpliceGraph.h"
@@ -139,6 +140,7 @@ class ReadAlign {
 
         //binned alignments
         uintWinBin **winBin; //binned genome: window ID (number) per bin
+        WinBinReset winBinReset; //per-read reset of the winBin entries written for the previous read
 
         //alignments
         uiPC *PC; //pieces coordinates

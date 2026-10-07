@@ -23,6 +23,7 @@ ReadAlign::ReadAlign (Parameters& Pin, Genome &genomeIn, Transcriptome *TrIn, in
         winBin[1] = new uintWinBin [P.winBinN];
         memset(winBin[0],255,sizeof(winBin[0][0])*P.winBinN);
         memset(winBin[1],255,sizeof(winBin[0][0])*P.winBinN);
+        winBinReset.init(winBin, P.winBinN);
         //split
         splitR=new uint*[3];
         splitR[0]=new uint[P.maxNsplit]; splitR[1]=new uint[P.maxNsplit]; splitR[2]=new uint[P.maxNsplit];

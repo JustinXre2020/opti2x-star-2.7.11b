@@ -81,7 +81,7 @@ OBJECTS = systemFunctions.o funPrimaryAlignMark.o \
 	ReadAlign_peOverlapMergeMap.o ReadAlign_mappedFilter.o \
 	ParametersChimeric_initialize.o ReadAlign_chimericDetection.o ReadAlign_chimericDetectionOld.o ReadAlign_chimericDetectionOldOutput.o\
 	ChimericDetection.o ChimericDetection_chimericDetectionMult.o ReadAlign_chimericDetectionPEmerged.o \
-	stitchWindowAligns.o extendAlign.o stitchAlignToTranscript.o \
+	stitchWindowAligns.o extendAlign.o stitchAlignToTranscript.o sjMotif.o saSearchPiece.o fileMapping.o sjdbInsertSA.o \
 	ChimericSegment.cpp ChimericAlign.cpp ChimericAlign_chimericJunctionOutput.o ChimericAlign_chimericBAMoutput.o ChimericAlign_chimericStitching.o \
 	Genome_genomeGenerate.o genomeParametersWrite.o genomeScanFastaFiles.o genomeSAindex.o \
 	Genome_insertSequences.o insertSeqSA.o funCompareUintAndSuffixes.o funCompareUintAndSuffixesMemcmp.o \
