@@ -31,7 +31,7 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
         trA->sjStr[trA->nExons-1]=mapGen.sjdbStrand[sjAB];;
         trA->nExons++;
         trA->nMatch+=L;
-        for (uint ii=rBstart;ii<rBstart+L;ii++) Score+=scoreMatch; //add QS for mapped portions
+        Score += (intScore)L * scoreMatch; // closed-form; scoreMatch constant
         Score+=P.pGe.sjdbScore;
     } else {//general stitching
         trA->sjAnnot[trA->nExons-1]=0;
@@ -61,7 +61,7 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
                 L=rBend-rBstart+1;
             };
 
-            for (uint ii=rBstart;ii<=rBend;ii++) Score+=scoreMatch; //add QS for mapped portions
+            Score += (intScore)(rBend - rBstart + 1) * scoreMatch; // closed-form mapped B
 
             int gGap=gBstart-gAend-1; //could be < 0 for insertions
             int rGap=rBstart-rAend-1;//>0 always since we removed overlap
@@ -80,15 +80,14 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
                 //do nothing for now
             } else if ( gGap>0 && rGap>0 && rGap==gGap ) {//no gaps, just try to fill space
                 //simple stitching, assuming no insertion in the read
-
-                for (int ii=1;ii<=rGap;ii++) {
-                    if (G[gAend+ii]<4 && R[rAend+ii]<4) {//only score genome bases that are not Ns
-                        if ( R[rAend+ii]==G[gAend+ii] ) {
-                            Score+=scoreMatch;
-                            nMatch++;
-                        } else {
-                            Score-=scoreMatch;
-                            nMM++;
+                // HH1: pointer walk (same comparisons/order as indexed loop)
+                {
+                    char *Rp = R + rAend + 1;
+                    char *Gp = G + gAend + 1;
+                    for (int ii=1; ii<=rGap; ii++, ++Rp, ++Gp) {
+                        if (*Gp<4 && *Rp<4) {
+                            if ( *Rp==*Gp ) { Score+=scoreMatch; nMatch++; }
+                            else { Score-=scoreMatch; nMM++; };
                         };
                     };
                 };
@@ -113,6 +112,11 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
                 Score1=0;
                 int jPen=0;
                 const int jPenMotif[7]={P.scoreGapNoncan, 0, 0, P.scoreGapGCAG, P.scoreGapGCAG, P.scoreGapATAC, P.scoreGapATAC}; //by motif code
+                // HH4: the largest jPen1 any later locus can add, for the early stop below (no motif is scored when Del<alignIntronMin)
+                int maxPenUB = 0;
+                if (Del>=P.alignIntronMin) {
+                    for (int pen : jPenMotif) maxPenUB = max(maxPenUB, pen);
+                };
                 do { // 2. scan to the right to find the best junction locus
                     // ?TODO? if genome base is N, how to score?
                     if  ( R[rAend+jR1]==G[gAend+jR1] && R[rAend+jR1]!=G[gBstart1+jR1] )  Score1+=scoreMatch;
@@ -137,8 +141,19 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
                         jCan=jCan1;
                         jPen=jPen1;
                     };
+                    // HH4: score-equivalent early-stop. Per step Score1 changes by at most +scoreMatch
+                    // (the two updates are mutually exclusive); Score2<=Score1+maxPenUB where maxPenUB is the
+                    // largest possible motif penalty (0 when all penalties <=0, the default). If even the
+                    // optimistic bound cannot strictly exceed maxScore2, no later locus can replace the best
+                    // (update requires strict <), so the chosen jR/jCan/jPen are identical.
+                    {
+                        int rem = int(rBend) - int(rAend) - 1 - jR1;
+                        if (rem > 0 && Score1 + scoreMatch * rem + maxPenUB <= maxScore2) {
+                            break;
+                        };
+                    };
                         jR1++;
-                } while ( jR1 < int(rBend) - int(rAend) );// - int(P.alignSJoverhangMin) );//TODO: do not need to search the full B-transcript, can stop as soon as Score goes down by more than
+                } while ( jR1 < int(rBend) - int(rAend) );// - int(P.alignSJoverhangMin) );// HH4: early-stop bound above
 
                 //repeat length: go back and forth around jR to find repeat length
                 uint jjL=0,jjR=0;
@@ -244,9 +259,7 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
                     jR=0;
                 } else if (gGap<0) {//overlapping seeds: reduce the score
                     jR=0;
-                    for (int ii=0; ii<-gGap; ii++) {
-                        Score -= scoreMatch;
-                    };
+                    Score -= (intScore)(-gGap) * scoreMatch; // closed-form
                 } else {//stitch: define the exon boundary jR
                     int Score1=0; int maxScore1=0;
                     for (int jR1=1;jR1<=gGap;jR1++) {//scan to the right to find the best score
@@ -342,9 +355,9 @@ intScore stitchAlignToTranscript(uint rAend, uint gAend, uint rBstart, uint gBst
             //extend the fragments inside
             //note, that this always works, i.e. Score>0
 
-            for (uint ii=rBstart;ii<rBstart+L;ii++) Score+=scoreMatch; //add QS for mapped portions
+            Score += (intScore)L * scoreMatch; // closed-form mapped B (mate stitch)
 
-            Transcript trExtend;
+            static thread_local Transcript trExtend; // HH1: reused, reset() before each use; one per --runThreadN thread
 
             //TODO: compare extensions to the left and right, pick the best one to be performed first
             //otherwise if a large nMM is reached in the 2st extension, it will prevent the 2nd extension

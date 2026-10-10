@@ -49,9 +49,10 @@ static void setParameters(Parameters &P) {
     for (int i=0;i<2;i++) for (int j=0;j<2;j++) P.alignEndsType.ext[i][j] = chance(0.15);
     P.outFilterMismatchNoverLmax = chance(0.7) ? 0.3 : 0.02+0.98*rnd(1000)/1000.0;
     P.scoreGap = chance(0.8) ? 0 : -(intScore)rnd(4);
-    P.scoreGapNoncan = chance(0.8) ? -8 : -(intScore)rnd(12);
-    P.scoreGapGCAG = chance(0.8) ? -4 : -(intScore)rnd(8);
-    P.scoreGapATAC = chance(0.8) ? -8 : -(intScore)rnd(12);
+    //motif penalties may be set positive: the junction scan's early stop must bound them too
+    P.scoreGapNoncan = chance(0.8) ? -8 : (intScore)rnd(16)-12;
+    P.scoreGapGCAG = chance(0.8) ? -4 : (intScore)rnd(12)-8;
+    P.scoreGapATAC = chance(0.8) ? -8 : (intScore)rnd(16)-12;
     P.scoreDelBase = -2; P.scoreDelOpen = -2; P.scoreInsBase = -2; P.scoreInsOpen = -2;
     if (chance(0.2)) {P.scoreDelBase=-(intScore)rnd(4); P.scoreDelOpen=-(intScore)rnd(4); P.scoreInsBase=-(intScore)rnd(4); P.scoreInsOpen=-(intScore)rnd(4);};
     P.scoreStitchSJshift = chance(0.8) ? 1 : rnd(4);
