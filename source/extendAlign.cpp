@@ -58,9 +58,9 @@ if (extendToEnd) {//end to end extension
 
 // Hoist constant mismatch break budget (was recomputed every MM iteration).
 // Break when nMM+nMMprev >= min(pMMmax*(Lprev+L), nMMmax) — L fixed in this call.
-const double mmBreakD = (pMMmax * double(Lprev + L) < double(nMMmax))
-    ? (pMMmax * double(Lprev + L)) : double(nMMmax);
-const uint mmBreak = (uint)mmBreakD; // floor; matches prior min(...) then >= compare semantics for typical values
+// Compare in double, as upstream does: flooring the bound would break one mismatch early
+// whenever pMMmax*(Lprev+L) is fractional and below nMMmax.
+const double mmBreak = min(pMMmax*double(Lprev+L), double(nMMmax));
 
 for (int i=0;i<(int) L;i++) {
     iS=dR*i;
@@ -84,7 +84,7 @@ for (int i=0;i<(int) L;i++) {
             };
         };
     } else {//MM
-        if (nMM+nMMprev >= mmBreak ) {//there is no hope to extend it further, break
+        if (double(nMM+nMMprev) >= mmBreak ) {//there is no hope to extend it further, break
             break;
         };
 
